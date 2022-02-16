@@ -1,0 +1,23 @@
+{
+  "name": "google-calendar-sync",
+  "version": "1.0.0",
+  "description": "Google apps script to sync events of one calendar with another",
+  "main": "Code.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hoesler/google-calendar-sync.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/hoesler/google-calendar-sync/issues"
+  },
+  "homepage": "https://github.com/hoesler/google-calendar-sync#readme",
+  "devDependencies": {
+    "eslint": "^8.9.0",
+    "eslint-config-google": "^0.14.0"
+  }
+}

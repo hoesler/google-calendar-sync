@@ -6,7 +6,7 @@
  * @return {Date} The new date.
  */
 function getRelativeDate(daysOffset, hour) {
-  var date = new Date();
+  let date = new Date();
   date.setDate(date.getDate() + daysOffset);
   date.setHours(hour);
   date.setMinutes(0);
@@ -16,12 +16,12 @@ function getRelativeDate(daysOffset, hour) {
 }
 
 function fetchEvents(calendarId, callback, fullSync=false) {
-  var properties = PropertiesService.getUserProperties();
-  var syncTokenKey = 'syncToken/' + calendarId;
-  var options = {
+  const properties = PropertiesService.getUserProperties();
+  const syncTokenKey = 'syncToken/' + calendarId;
+  let options = {
     maxResults: 100
   };
-  var syncToken = properties.getProperty(syncTokenKey);
+  let syncToken = properties.getProperty(syncTokenKey);
   if (syncToken && !fullSync) {
     options.syncToken = syncToken;
   } else {
@@ -30,8 +30,8 @@ function fetchEvents(calendarId, callback, fullSync=false) {
   }
 
   // Retrieve events one page at a time.
-  var pageToken;
-  var response;
+  let pageToken;
+  let response;
   do {
     try {
       options.pageToken = pageToken;
@@ -43,7 +43,7 @@ function fetchEvents(calendarId, callback, fullSync=false) {
           if (!event.attendees) {
             return false;
           }
-          var matching = event.attendees.filter(function(attendee) {
+          let matching = event.attendees.filter(function(attendee) {
             return attendee.self;
           });
           return matching.length > 0 && matching[0].responseStatus == 'accepted';
@@ -86,8 +86,8 @@ function createPrivateCopy(event, calendarId, organizerId) {
 }
 
 function syncEvent(calendarId, event) {
-  var primaryCalId = 'primary';
-  var primaryCopy;
+  const primaryCalId = 'primary';
+  let primaryCopy;
   
   try {
     primaryCopy = Calendar.Events.get(primaryCalId, event.id);
@@ -112,7 +112,7 @@ function syncEvent(calendarId, event) {
   else {
     if (primaryCopy) {
       Logger.log('Updating: %s @ %s', primaryCopy.summary, primaryCopy.start);
-      var eventCopy = createPrivateCopy(event, calendarId, primaryCalId);
+      let eventCopy = createPrivateCopy(event, calendarId, primaryCalId);
       eventCopy.sequence = primaryCopy.sequence;
       try {
         Calendar.Events.update(eventCopy, primaryCalId, primaryCopy.id);
@@ -121,7 +121,7 @@ function syncEvent(calendarId, event) {
       }
 
     } else {
-      var eventCopy = createPrivateCopy(event, calendarId, primaryCalId);
+      let eventCopy = createPrivateCopy(event, calendarId, primaryCalId);
       Logger.log('Importing: %s @ %s', eventCopy.summary, primaryCopy.start);
       try {
         Calendar.Events.import(eventCopy, primaryCalId);
@@ -132,7 +132,8 @@ function syncEvent(calendarId, event) {
   }
 }
 
+// eslint-disable-next-line no-unused-vars
 function main() {
-  var calendarId="supplemental_calendar_id";
+  const calendarId="supplemental_calendar_id";
   fetchEvents(calendarId, syncEvent);
 }
