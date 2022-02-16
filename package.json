@@ -11,7 +11,7 @@
     "url": "git+https://github.com/hoesler/google-calendar-sync.git"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/hoesler/google-calendar-sync/issues"
   },
