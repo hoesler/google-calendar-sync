@@ -1,12 +1,22 @@
 /**
+ * https://developers.google.com/calendar/api/v3/reference/events/list
+ */
+interface EventsListOptions {
+  maxResults?: number
+  syncToken?: string
+  timeMin?: string
+  pageToken?: string
+}
+
+/**
  * Helper function to get a new Date object relative to the current date.
  * @param {number} daysOffset The number of days in the future for the new date.
  * @param {number} hour The hour of the day for the new date, in the time zone
  *     of the script.
  * @return {Date} The new date.
  */
-function getRelativeDate(daysOffset, hour) {
-  let date = new Date();
+function getRelativeDate(daysOffset: number, hour: number): Date {
+  const date = new Date();
   date.setDate(date.getDate() + daysOffset);
   date.setHours(hour);
   date.setMinutes(0);
@@ -15,13 +25,16 @@ function getRelativeDate(daysOffset, hour) {
   return date;
 }
 
-function fetchEvents(calendarId, callback, fullSync=false) {
+type EventCallback = (calendarId: string, event: GoogleAppsScript.Calendar.Schema.Event) => void;
+
+function fetchEvents(calendarId: string, callback: EventCallback, fullSync=false) {
   const properties = PropertiesService.getUserProperties();
   const syncTokenKey = 'syncToken/' + calendarId;
-  let options = {
+
+  const options: EventsListOptions = {
     maxResults: 100
   };
-  let syncToken = properties.getProperty(syncTokenKey);
+  const syncToken = properties.getProperty(syncTokenKey);
   if (syncToken && !fullSync) {
     options.syncToken = syncToken;
   } else {
@@ -30,8 +43,8 @@ function fetchEvents(calendarId, callback, fullSync=false) {
   }
 
   // Retrieve events one page at a time.
-  let pageToken;
-  let response;
+  let pageToken: string;
+  let response: GoogleAppsScript.Calendar.Schema.Events;
   do {
     try {
       options.pageToken = pageToken;
@@ -43,7 +56,7 @@ function fetchEvents(calendarId, callback, fullSync=false) {
           if (!event.attendees) {
             return false;
           }
-          let matching = event.attendees.filter(function(attendee) {
+          const matching = event.attendees.filter(function(attendee) {
             return attendee.self;
           });
           return matching.length > 0 && matching[0].responseStatus == 'accepted';
@@ -70,7 +83,7 @@ function fetchEvents(calendarId, callback, fullSync=false) {
   properties.setProperty(syncTokenKey, response.nextSyncToken);
 }
 
-function createPrivateCopy(event, calendarId, organizerId) {
+function createPrivateCopy(event: GoogleAppsScript.Calendar.Schema.Event, calendarId: string, organizerId: string) {
   event.summary = '[' + calendarId + '] ' + event.summary;
   event.attendees = [];
   event.visibility = 'private';
@@ -81,11 +94,11 @@ function createPrivateCopy(event, calendarId, organizerId) {
     useDefault: false,
     overrides: []
   };
-  event.colorId = 9;
+  event.colorId = "9";
   return event;
 }
 
-function syncEvent(calendarId, event) {
+function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.Event) {
   const primaryCalId = 'primary';
   let primaryCopy;
   
@@ -112,7 +125,7 @@ function syncEvent(calendarId, event) {
   else {
     if (primaryCopy) {
       Logger.log('Updating: %s @ %s', primaryCopy.summary, primaryCopy.start);
-      let eventCopy = createPrivateCopy(event, calendarId, primaryCalId);
+      const eventCopy = createPrivateCopy(event, calendarId, primaryCalId);
       eventCopy.sequence = primaryCopy.sequence;
       try {
         Calendar.Events.update(eventCopy, primaryCalId, primaryCopy.id);
@@ -121,7 +134,7 @@ function syncEvent(calendarId, event) {
       }
 
     } else {
-      let eventCopy = createPrivateCopy(event, calendarId, primaryCalId);
+      const eventCopy = createPrivateCopy(event, calendarId, primaryCalId);
       Logger.log('Importing: %s @ %s', eventCopy.summary, primaryCopy.start);
       try {
         Calendar.Events.import(eventCopy, primaryCalId);
@@ -132,7 +145,7 @@ function syncEvent(calendarId, event) {
   }
 }
 
-// eslint-disable-next-line no-unused-vars
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function main() {
   const calendarId="supplemental_calendar_id";
   fetchEvents(calendarId, syncEvent);
