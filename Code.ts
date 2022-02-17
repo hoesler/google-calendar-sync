@@ -1,6 +1,8 @@
 interface CalendarSyncConfig {
   colorId?: string
   titlePrefix?: string
+  summary?: string
+  copyDescription?: boolean
 }
 
 /**
@@ -30,6 +32,22 @@ function getRelativeDate(daysOffset: number, hour: number): Date {
   return date;
 }
 
+function formatEventDate(date: GoogleAppsScript.Calendar.Schema.EventDateTime): string {
+  let timeZone = date.timeZone
+  if (!timeZone) {
+    timeZone = Calendar.Settings.get('timezone').value
+  }
+
+  const locale = Calendar.Settings.get('locale').value
+
+  if (date.date) {
+    // All-day event.
+    return new Date(date.date).toLocaleString(locale, {timeZone: timeZone});
+  } else {
+    return new Date(date.dateTime).toLocaleString(locale, {timeZone: timeZone});
+  }
+}
+
 type EventCallback = (calendarId: string, event: GoogleAppsScript.Calendar.Schema.Event) => void;
 
 function fetchEvents(calendarId: string, callback: EventCallback, fullSync=false) {
@@ -54,9 +72,9 @@ function fetchEvents(calendarId: string, callback: EventCallback, fullSync=false
     try {
       options.pageToken = pageToken;
       response = Calendar.Events.list(calendarId, options);
-      response.items.forEach(function(event) {
-        callback(calendarId, event);
-      });
+      response.items
+        .filter(event => event['eventType'] != "outOfOffice")
+        .forEach(event => callback(calendarId, event));
 
       pageToken = response.nextPageToken;
     } catch (e) {
@@ -75,26 +93,45 @@ function fetchEvents(calendarId: string, callback: EventCallback, fullSync=false
   properties.setProperty(syncTokenKey, response.nextSyncToken);
 }
 
-function createPrivateCopy(event: GoogleAppsScript.Calendar.Schema.Event, calendarId: string, organizerId: string) {
+function copyEvent(event: GoogleAppsScript.Calendar.Schema.Event, calendarId: string): GoogleAppsScript.Calendar.Schema.Event {
   const calendarSyncConfig: CalendarSyncConfig = appConfig[calendarId]
 
-  if (calendarSyncConfig.titlePrefix === undefined) {
-    event.summary = '[' + calendarId + '] ' + event.summary;
+  let summary = event.summary
+  if (calendarSyncConfig.summary) {
+    summary = calendarSyncConfig.summary
+  } else if (calendarSyncConfig.titlePrefix === undefined) {
+    summary = '[' + calendarId + '] ' + event.summary;
   } else if (calendarSyncConfig.titlePrefix !== null) {
-    event.summary = calendarSyncConfig.titlePrefix + ' ' + event.summary;
+    summary = calendarSyncConfig.titlePrefix + ' ' + event.summary;
   }
-  
-  event.attendees = [];
-  event.visibility = 'private';
-  event.organizer = {
-    id: organizerId
-  };
-  event.reminders = {
-    useDefault: false,
-    overrides: []
-  };
-  event.colorId = calendarSyncConfig.colorId;
-  return event;
+
+  const eventCopy: GoogleAppsScript.Calendar.Schema.Event = {
+    id: event.id,
+    iCalUID: event.iCalUID,
+    reminders: {
+      useDefault: false,
+      overrides: []
+    },
+    colorId: calendarSyncConfig.colorId,
+    summary: summary,
+    start: event.start,
+    end: event.end,
+    recurrence: event.recurrence,
+    recurringEventId: event.recurringEventId,
+    originalStartTime: event.originalStartTime,
+    source: {
+      title: calendarId,
+      url: event.htmlLink
+    }
+  }
+
+  if (calendarSyncConfig.copyDescription) {
+    eventCopy.description = event.description
+  }
+
+  eventCopy['eventType'] = event['eventType']
+
+  return eventCopy
 }
 
 function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.Event) {
@@ -111,7 +148,7 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
     }
   }
 
-  const isCancelled = event.status === 'cancelled'
+  const isCancelled = event.status == 'cancelled'
   const isInvitation = event.organizer && event.organizer.email != calendarId
   let isAccepted = false
   if (isInvitation) {
@@ -119,13 +156,13 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
       const matching = event.attendees.filter(function(attendee) {
         return attendee.self;
       });
-      isAccepted = matching.length > 0 && matching[0].responseStatus == 'accepted';
+      isAccepted = matching.length > 0 && matching[0].responseStatus === 'accepted';
     }
   }
 
   if (isCancelled || isInvitation && !isAccepted) {
-    if (primaryCopy) {
-      Logger.log('Deleting: %s @ %s', primaryCopy.summary, primaryCopy.start);
+    if (primaryCopy && primaryCopy.status !== 'cancelled') {
+      Logger.log('Deleting: %s @ %s', event.summary, formatEventDate(event.start));
       try {
         Calendar.Events.remove(primaryCalId, primaryCopy.id);
       } catch (e) {
@@ -135,8 +172,8 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
   }
   else {
     if (primaryCopy) {
-      Logger.log('Updating: %s @ %s', primaryCopy.summary, primaryCopy.start);
-      const eventCopy = createPrivateCopy(event, calendarId, primaryCalId);
+      Logger.log('Updating: %s @ %s', event.summary, formatEventDate(event.start));
+      const eventCopy = copyEvent(event, calendarId);
       eventCopy.sequence = primaryCopy.sequence;
       try {
         Calendar.Events.update(eventCopy, primaryCalId, primaryCopy.id);
@@ -145,8 +182,8 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
       }
 
     } else {
-      const eventCopy = createPrivateCopy(event, calendarId, primaryCalId);
-      Logger.log('Importing: %s @ %s', eventCopy.summary, eventCopy.start);
+      const eventCopy = copyEvent(event, calendarId);
+      Logger.log('Importing: %s @ %s', event.summary, formatEventDate(event.start));
       try {
         Calendar.Events.import(eventCopy, primaryCalId);
       } catch (e) {
