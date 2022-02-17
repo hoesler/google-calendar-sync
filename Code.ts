@@ -53,20 +53,7 @@ function fetchEvents(calendarId: string, callback: EventCallback, fullSync=false
     try {
       options.pageToken = pageToken;
       response = Calendar.Events.list(calendarId, options);
-      response.items.filter(function(event) {
-        // If the event was created by someone other than the user, only include
-        // it if the user has marked it as 'accepted'.
-        if (event.organizer && event.organizer.email != calendarId) {
-          if (!event.attendees) {
-            return false;
-          }
-          const matching = event.attendees.filter(function(attendee) {
-            return attendee.self;
-          });
-          return matching.length > 0 && matching[0].responseStatus == 'accepted';
-        }
-        return true;
-      }).forEach(function(event) {
+      response.items.forEach(function(event) {
         callback(calendarId, event);
       });
 
@@ -106,7 +93,7 @@ function createPrivateCopy(event: GoogleAppsScript.Calendar.Schema.Event, calend
 
 function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.Event) {
   const primaryCalId = 'primary';
-  let primaryCopy;
+  let primaryCopy: GoogleAppsScript.Calendar.Schema.Event | null | undefined;
   
   try {
     primaryCopy = Calendar.Events.get(primaryCalId, event.id);
@@ -118,7 +105,19 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
     }
   }
 
-  if (event.status === 'cancelled') {
+  const isCancelled = event.status === 'cancelled'
+  const isInvitation = event.organizer && event.organizer.email != calendarId
+  let isAccepted = false
+  if (isInvitation) {
+    if (event.attendees) {
+      const matching = event.attendees.filter(function(attendee) {
+        return attendee.self;
+      });
+      isAccepted = matching.length > 0 && matching[0].responseStatus == 'accepted';
+    }
+  }
+
+  if (isCancelled || isInvitation && !isAccepted) {
     if (primaryCopy) {
       Logger.log('Deleting: %s @ %s', primaryCopy.summary, primaryCopy.start);
       try {
@@ -141,7 +140,7 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
 
     } else {
       const eventCopy = createPrivateCopy(event, calendarId, primaryCalId);
-      Logger.log('Importing: %s @ %s', eventCopy.summary, primaryCopy.start);
+      Logger.log('Importing: %s @ %s', eventCopy.summary, eventCopy.start);
       try {
         Calendar.Events.import(eventCopy, primaryCalId);
       } catch (e) {
