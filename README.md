@@ -4,6 +4,11 @@
 Google apps script to sync events of one calendar with another
 
 ## Usage
-- Replace the calendar id in the main function of [Code.ts](Code.ts) to the id of the calendar to sync.
-- Use [clasp](https://github.com/google/clasp) to push the code to your project.
-- Set up a trigger to run the main function on modifications in the calendar.
+- Create a file `Config.ts` and add a `appConfig` object like the following:
+  ```typescript
+  const appConfig: Record<string, CalendarSyncConfig> = {
+	"christoph.hoesler@gmail.com": {}
+  }
+  ```
+- Run [clasp](https://github.com/google/clasp) to push the code to your project.
+- Run `installTriggers` in the UI

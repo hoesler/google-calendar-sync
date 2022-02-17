@@ -1,3 +1,7 @@
+interface CalendarSyncConfig {
+  colorId?: string
+}
+
 /**
  * https://developers.google.com/calendar/api/v3/reference/events/list
  */
@@ -84,6 +88,8 @@ function fetchEvents(calendarId: string, callback: EventCallback, fullSync=false
 }
 
 function createPrivateCopy(event: GoogleAppsScript.Calendar.Schema.Event, calendarId: string, organizerId: string) {
+  const calendarSyncConfig: CalendarSyncConfig = appConfig[calendarId]
+
   event.summary = '[' + calendarId + '] ' + event.summary;
   event.attendees = [];
   event.visibility = 'private';
@@ -94,7 +100,7 @@ function createPrivateCopy(event: GoogleAppsScript.Calendar.Schema.Event, calend
     useDefault: false,
     overrides: []
   };
-  event.colorId = "9";
+  event.colorId = calendarSyncConfig.colorId;
   return event;
 }
 
@@ -149,4 +155,39 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
 function main() {
   const calendarId="supplemental_calendar_id";
   fetchEvents(calendarId, syncEvent);
+}
+
+interface EventUpdated {
+  authMode: GoogleAppsScript.Script.AuthMode
+  calendarId: string
+  triggerUid: string
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function onCalendarUpdateEvent(event: EventUpdated) {
+  fetchEvents(event.calendarId, syncEvent);
+}
+
+function installTriggers() {
+  const triggers = ScriptApp.getProjectTriggers();
+  for (const calendarId in appConfig) {
+    if (!triggers.some(trigger => trigger.getTriggerSourceId() === calendarId)) {
+      Logger.log('Installing trigger for %s', calendarId)
+      ScriptApp.newTrigger('onCalendarUpdateEvent')
+        .forUserCalendar(calendarId)
+        .onEventUpdated()
+        .create()
+     }
+   }
+}
+
+function deleteTriggers() {
+  Logger.log('Deleting all triggers')
+  ScriptApp.getProjectTriggers().forEach(trigger => ScriptApp.deleteTrigger(trigger));
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function recreateTriggers() {
+  deleteTriggers()
+  installTriggers()
 }
