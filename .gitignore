@@ -3,6 +3,7 @@ Config.ts
 
 # clasp config
 .clasp.json
+.clasprc.json
 
 # Logs
 logs
