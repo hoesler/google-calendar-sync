@@ -1,5 +1,6 @@
 interface CalendarSyncConfig {
   colorId?: string
+  titlePrefix?: string
 }
 
 /**
@@ -77,7 +78,12 @@ function fetchEvents(calendarId: string, callback: EventCallback, fullSync=false
 function createPrivateCopy(event: GoogleAppsScript.Calendar.Schema.Event, calendarId: string, organizerId: string) {
   const calendarSyncConfig: CalendarSyncConfig = appConfig[calendarId]
 
-  event.summary = '[' + calendarId + '] ' + event.summary;
+  if (calendarSyncConfig.titlePrefix === undefined) {
+    event.summary = '[' + calendarId + '] ' + event.summary;
+  } else if (calendarSyncConfig.titlePrefix !== null) {
+    event.summary = calendarSyncConfig.titlePrefix + ' ' + event.summary;
+  }
+  
   event.attendees = [];
   event.visibility = 'private';
   event.organizer = {
@@ -148,12 +154,6 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
       }
     }
   }
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function main() {
-  const calendarId="supplemental_calendar_id";
-  fetchEvents(calendarId, syncEvent);
 }
 
 interface EventUpdated {
