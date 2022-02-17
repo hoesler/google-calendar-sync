@@ -120,7 +120,7 @@ function copyEvent(event: GoogleAppsScript.Calendar.Schema.Event, calendarId: st
     recurringEventId: event.recurringEventId,
     originalStartTime: event.originalStartTime,
     source: {
-      title: calendarId,
+      title: '[' + calendarId + '] ' + event.summary,
       url: event.htmlLink
     }
   }
