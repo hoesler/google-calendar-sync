@@ -227,3 +227,9 @@ function recreateTriggers() {
   deleteTriggers()
   installTriggers()
 }
+
+function main() {
+  for (const calendarId in appConfig) {
+    fetchEvents(calendarId, syncEvent, true);
+  }
+}
