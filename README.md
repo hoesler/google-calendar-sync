@@ -6,6 +6,8 @@ Inspired by similar features of tools like [reclaim.ai](https://reclaim.ai/featu
 
 
 ## Usage
+Prerequisite: The calendar you want to sync must be [shared](https://support.google.com/calendar/answer/37082) with your account.
+
 - Copy `Config.ts.sample` to `Config.ts` and adjust the `appConfig`.
 - Use [clasp](https://github.com/google/clasp) to push the code to your project.
 - Run the `installTriggers` function in the UI
