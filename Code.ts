@@ -193,6 +193,20 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
   }
 }
 
+function deleteEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.Event) {
+  const primaryCalId = 'primary';
+  Logger.log('Deleting primary copy for: [%s] %s', event.start ? formatEventDate(event.start) : 'undefined', event.summary);
+  try {
+    Calendar.Events.remove(primaryCalId, event.id);
+  } catch (e) {
+    if (e.message.endsWith('Not Found')) {
+      return
+    } else {
+      Logger.log('Error attempting to remove event: %s. Skipping.', e.toString());
+    }
+  }
+}
+
 interface EventUpdated {
   authMode: GoogleAppsScript.Script.AuthMode
   calendarId: string
@@ -228,8 +242,16 @@ function recreateTriggers() {
   installTriggers()
 }
 
-function main() {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function syncAllEvents() {
   for (const calendarId in appConfig) {
     fetchEvents(calendarId, syncEvent, true);
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function removeAllEvents() {
+  for (const calendarId in appConfig) {
+    fetchEvents(calendarId, deleteEvent, true);
   }
 }
