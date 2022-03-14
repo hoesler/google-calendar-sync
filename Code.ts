@@ -1,8 +1,22 @@
+enum EventVisibillity {
+  Default = "default",
+  Public = "public",
+  Private = 'private'
+}
+
+enum ResponseStatus {
+  NeedsAction = "needsAction",
+  Declined = "declined",
+  Tentative = 'tentative',
+  Accepted = 'accepted'
+}
+
 interface CalendarSyncConfig {
   colorId?: string
   titlePrefix?: string
   summary?: string
   copyDescription?: boolean
+  visibility?: EventVisibillity
 }
 
 /**
@@ -122,7 +136,9 @@ function copyEvent(event: GoogleAppsScript.Calendar.Schema.Event, calendarId: st
     source: {
       title: '[' + calendarId + '] ' + event.summary,
       url: event.htmlLink
-    }
+    },
+    sequence: event.sequence,
+    visibility: calendarSyncConfig.visibility
   }
 
   if (calendarSyncConfig.copyDescription) {
@@ -156,13 +172,13 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
       const matching = event.attendees.filter(function(attendee) {
         return attendee.self;
       });
-      isAccepted = matching.length > 0 && matching[0].responseStatus === 'accepted';
+      isAccepted = matching.length > 0 && matching[0].responseStatus === ResponseStatus.Accepted;
     }
   }
 
   if (isCancelled || isInvitation && !isAccepted) {
     if (primaryCopy && primaryCopy.status !== 'cancelled') {
-      Logger.log('Deleting: %s @ %s', event.summary, formatEventDate(event.start));
+      Logger.log('Deleting primary copy for: [%s] %s', event.start ? formatEventDate(event.start) : 'undefined', event.summary);
       try {
         Calendar.Events.remove(primaryCalId, primaryCopy.id);
       } catch (e) {
@@ -172,9 +188,14 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
   }
   else {
     if (primaryCopy) {
-      Logger.log('Updating: %s @ %s', event.summary, formatEventDate(event.start));
+      Logger.log('Updating primary copy for: [%s] %s', event.start ? formatEventDate(event.start) : 'undefined', event.summary);
+      
+      if (primaryCopy.locked) {
+        Logger.log('Error: Cannot update a locked event');
+        return;
+      }
+
       const eventCopy = copyEvent(event, calendarId);
-      eventCopy.sequence = primaryCopy.sequence;
       try {
         Calendar.Events.update(eventCopy, primaryCalId, primaryCopy.id);
       } catch (e) {
@@ -183,7 +204,7 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
 
     } else {
       const eventCopy = copyEvent(event, calendarId);
-      Logger.log('Importing: %s @ %s', event.summary, formatEventDate(event.start));
+      Logger.log('Importing primary copy for: [%s] %s', event.start ? formatEventDate(event.start) : 'undefined', event.summary);
       try {
         Calendar.Events.import(eventCopy, primaryCalId);
       } catch (e) {
