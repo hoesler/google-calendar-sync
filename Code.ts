@@ -48,7 +48,7 @@ function getRelativeDate(daysOffset: number, hour: number): Date {
 
 function formatEventDate(date: GoogleAppsScript.Calendar.Schema.EventDateTime): string {
   let timeZone = date.timeZone
-  if (!timeZone) {
+  if (!timeZone || timeZone.includes('+')) {
     timeZone = Calendar.Settings.get('timezone').value
   }
 
@@ -82,15 +82,11 @@ function fetchEvents(calendarId: string, callback: EventCallback, fullSync=false
   // Retrieve events one page at a time.
   let pageToken: string;
   let response: GoogleAppsScript.Calendar.Schema.Events;
+  
   do {
     try {
       options.pageToken = pageToken;
       response = Calendar.Events.list(calendarId, options);
-      response.items
-        .filter(event => event['eventType'] != "outOfOffice")
-        .forEach(event => callback(calendarId, event));
-
-      pageToken = response.nextPageToken;
     } catch (e) {
       // Check to see if the sync token was invalidated by the server;
       // if so, perform a full sync instead.
@@ -99,9 +95,16 @@ function fetchEvents(calendarId: string, callback: EventCallback, fullSync=false
         fetchEvents(calendarId, callback, true);
         return;
       } else {
-        throw new Error(e.message);
+        throw e;
       }
     }
+    
+    response.items
+      .filter(event => event['eventType'] != "outOfOffice")
+      .forEach(event => callback(calendarId, event));
+
+    pageToken = response.nextPageToken;
+
   } while (pageToken);
 
   properties.setProperty(syncTokenKey, response.nextSyncToken);
