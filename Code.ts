@@ -167,7 +167,8 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
     }
   }
 
-  const isCancelled = event.status == 'cancelled'
+  const isTransparent = event.transparency === 'transparent'
+  const isCancelled = event.status === 'cancelled'
   const isInvitation = event.organizer && event.organizer.email != calendarId
   let isAccepted = false
   if (isInvitation) {
@@ -179,7 +180,7 @@ function syncEvent(calendarId: string, event: GoogleAppsScript.Calendar.Schema.E
     }
   }
 
-  if (isCancelled || isInvitation && !isAccepted) {
+  if (isCancelled || isInvitation && !isAccepted || isTransparent) {
     if (primaryCopy && primaryCopy.status !== 'cancelled') {
       Logger.log('Deleting primary copy for: [%s] %s', event.start ? formatEventDate(event.start) : 'undefined', event.summary);
       try {
