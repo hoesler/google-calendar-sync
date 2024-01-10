@@ -90,12 +90,12 @@ function fetchEvents(calendarId: string, callback: EventCallback, fullSync=false
     } catch (e) {
       // Check to see if the sync token was invalidated by the server;
       // if so, perform a full sync instead.
-      if (e.message === 'Sync token is no longer valid, a full sync is required.') {
+      if (e.message.endsWith('Sync token is no longer valid, a full sync is required.')) {
         properties.deleteProperty(syncTokenKey);
         fetchEvents(calendarId, callback, true);
         return;
       } else {
-        throw e;
+        throw new Error("Error while listing events", { cause: e });
       }
     }
     
