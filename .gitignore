@@ -1,6 +1,10 @@
 # App config
 Config.ts
 
+# All generated js files
+*.js
+!.eslint.js
+
 # clasp config
 .clasp.json
 .clasprc.json
